@@ -1067,17 +1067,17 @@ You should select an option different to 0 ONLY if the variable represent a new 
                     # Case 2: Variable has explicit aggregator
                     agg = item["aggregator"]
                     if agg.upper() == "COUNT":
-                        select_vars_str.append(f"{agg}(DISTINCT ?{var_name}) as ?{var_name}_{agg.lower()}")
+                        select_vars_str.append(f"({agg}(DISTINCT ?{var_name}) as ?{var_name}_{agg.lower()})")
                     else:
-                        select_vars_str.append(f"{agg}(?{var_name}) as ?{var_name}_{agg.lower()}")
+                        select_vars_str.append(f"({agg}(?{var_name}) as ?{var_name}_{agg.lower()})")
                 
                 else:
                     # Case 3: Variable is NOT grouped and NO aggregator -> Auto-SAMPLE
-                    select_vars_str.append(f"SAMPLE(?{var_name}) as ?{var_name}_sample")
+                    select_vars_str.append(f"(SAMPLE(?{var_name}) as ?{var_name}_sample)")
             elif item.get("aggregator"):
                 # Case 4: Variable has SAMPLE aggregator
                 agg = item["aggregator"]
-                select_vars_str.append(f"{agg}(?{var_name}) as ?{var_name}_{agg.lower()}")
+                select_vars_str.append(f"({agg}(?{var_name}) as ?{var_name}_{agg.lower()})")
             else:
                 select_vars_str.append(f"?{var_name}")
 
