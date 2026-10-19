@@ -64,7 +64,7 @@ def get_entity_properties_internal(
             WHERE {{
                 <{entity_uri}> ?property ?value .
                 FILTER (
-                    !(?property = rdfs:comment) || lang(?value) = "en"
+                    (?property != rdfs:comment) || (lang(?value) = "en")
                 )
             }}
             """
