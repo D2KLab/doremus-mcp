@@ -1162,8 +1162,15 @@ You should select an option different to 0 ONLY if the variable represent a new 
         query_parts.append("}")
 
         # Build Group By
+        agg_items = [item for item in self.select if item.get("aggregator")]
+        plain_items = [item for item in self.select if not item.get("aggregator")]
         if self.group_by:
             g_vars = [f"?{v['var_name']}" for v in self.group_by]
+            query_parts.append(f"GROUP BY {' '.join(g_vars)}")
+        elif agg_items and plain_items:
+            # Aggregates mixed with plain projected variables require an explicit
+            # GROUP BY on those variables; the endpoint rejects the query otherwise.
+            g_vars = [f"?{v['var_name']}" for v in plain_items]
             query_parts.append(f"GROUP BY {' '.join(g_vars)}")
 
         # Build Having
