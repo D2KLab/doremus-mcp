@@ -68,8 +68,8 @@ def execute_sparql_query(query: str, limit: int = 100, timeout: Optional[int] = 
     """
     try:
         logger.info(f"Executing SPARQL query with limit {limit}")
-        # prefix_lines.join(f"PREFIX {p}: <{uri}>\n" for p, uri in PREFIXES.items())
-        # query = prefix_lines + "\n" + query
+        declared = set(re.findall(r"PREFIX\s+(\w+)\s*:", query, re.IGNORECASE))
+        query = "".join(f"PREFIX {p}: <{uri}>\n" for p, uri in PREFIXES.items() if p not in declared) + query
         if "LIMIT" not in query.upper():
             query = f"{query}\nLIMIT {limit}"
         
@@ -149,8 +149,7 @@ def find_candidate_entities_utils(
             "error": "Name is required to search for entities."
         }
 
-    search_term_escaped = search_term.replace("'", "''").replace('"', '\\"')
-    search_literal = f"'{search_term_escaped}'"
+    search_regex = re.escape(search_term).replace("\\", "\\\\").replace('"', '\\"')
 
     query_template = DISCOVERY_CONFIG.get("candidate_entities_query", "")
     if not query_template:
@@ -160,7 +159,7 @@ def find_candidate_entities_utils(
             "error": "candidate_entities_query not found in config"
         }
     
-    query = query_template.format(label_predicate=label_predicate, search_literal=search_literal)
+    query = query_template.format(label_predicate=label_predicate, search_regex=search_regex)
 
     result = execute_sparql_query(query, limit=limit)
     
@@ -213,9 +212,16 @@ def find_equivalent_uris(uri: str) -> List[str]:
     # Warning: * (zero or more) matches the node itself too.
     
     query = f"""
+    PREFIX owl: <http://www.w3.org/2002/07/owl#>
     SELECT DISTINCT ?equivalent
     WHERE {{
-       <{uri}> (skos:exactMatch|^skos:exactMatch|owl:sameAs|^owl:sameAs)* ?equivalent .
+        {{ <{uri}> skos:exactMatch ?equivalent . }}
+        UNION
+        {{ ?equivalent skos:exactMatch <{uri}> . }}
+        UNION
+        {{ <{uri}> owl:sameAs ?equivalent . }}
+        UNION
+        {{ ?equivalent owl:sameAs <{uri}> . }}
     }}
     """
     

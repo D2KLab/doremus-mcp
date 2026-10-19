@@ -23,37 +23,36 @@ discovery:
     others: "rdfs:label"
 
   # Query to find candidate entities
-  # Placeholders: {label_predicate}, {search_literal}
+  # Placeholders: {label_predicate}, {search_regex}
+  # Uses FILTER regex: the endpoint runs QLever, which has no bif:contains/score support.
   candidate_entities_query: |
     SELECT ?entity ?label ?type
     WHERE {{
     {{
-        SELECT ?entity ?type (SUBSTR(MIN(CONCAT(?priority, ?label_lang)), 2) AS ?label) (MAX(?sc) AS ?maxSc)
+        SELECT ?entity ?type (SUBSTR(MIN(CONCAT(?priority, ?label_lang)), 2) AS ?label)
         WHERE {{
             ?entity {label_predicate} ?label_lang .
             ?entity a ?type .
-            ?label_lang bif:contains "{search_literal}" option (score ?sc) .
+            FILTER regex(?label_lang, "{search_regex}", "i")
 
             BIND(IF(LANG(?label_lang) = "en", "1", IF(LANG(?label_lang) = "", "2", "3")) AS ?priority)
         }}
         GROUP BY ?entity ?type
     }}
-
-    # Calculate the length difference
-    BIND(ABS(STRLEN(?label) - STRLEN("{search_literal}")) AS ?lenDiff)
-
-    # We divide the score by the length difference (adding 1 to avoid division by zero)
-    # This makes longer strings have a lower relevance.
-    BIND((xsd:float(?maxSc) / (xsd:float(?lenDiff) + 1.0)) AS ?hybridScore)
     }}
-    ORDER BY DESC(?hybridScore)
+    ORDER BY ?label
 
   # Query to get the label of a specific entity
   # Placeholders: {uri}
+  # Property paths are not supported by QLever, hence the UNION.
   get_entity_label_query: |
     SELECT ?label
     WHERE {{
-        <{uri}> rdfs:label | skos:prefLabel | foaf:name ?label .
+        {{ <{uri}> rdfs:label ?label . }}
+        UNION
+        {{ <{uri}> skos:prefLabel ?label . }}
+        UNION
+        {{ <{uri}> foaf:name ?label . }}
         BIND(IF(LANG(?label) = "en", 1, IF(LANG(?label) = "", 2, 3)) AS ?priority)
     }}
     ORDER BY ASC(?priority)
